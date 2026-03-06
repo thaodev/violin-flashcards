@@ -16,9 +16,10 @@ export default function App() {
   const [deck, setDeck] = useState(buildDeck)
   const [index, setIndex] = useState(0)
   const [score, setScore] = useState({ correct: 0, total: 0 })
-  const [cardKey, setCardKey] = useState(0) // force re-mount on next card
+  const [cardKey, setCardKey] = useState(0)
   const [sessionDone, setSessionDone] = useState(false)
   const [modeFilter, setModeFilter] = useState('both') // 'both' | 'staff-to-name' | 'name-to-staff'
+  const [level, setLevel] = useState('normal') // 'easy' | 'normal'
 
   const current = deck[index]
 
@@ -78,6 +79,28 @@ export default function App() {
         </div>
       </header>
 
+      {/* Level toggle */}
+      <div style={styles.levelRow}>
+        {[
+          { value: 'easy', label: '⭐ Easy' },
+          { value: 'normal', label: '🎯 Normal' },
+        ].map(({ value, label }) => (
+          <button
+            key={value}
+            style={{
+              ...styles.levelBtn,
+              background: level === value
+                ? value === 'easy' ? '#f9a825' : '#5c6bc0'
+                : '#ececf8',
+              color: level === value ? '#fff' : '#666',
+            }}
+            onClick={() => setLevel(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Mode filter */}
       <div style={styles.modeRow}>
         {[
@@ -92,9 +115,7 @@ export default function App() {
               background: modeFilter === value ? '#5c6bc0' : '#ececf8',
               color: modeFilter === value ? '#fff' : '#444',
             }}
-            onClick={() => {
-              setModeFilter(value)
-            }}
+            onClick={() => setModeFilter(value)}
           >
             {label}
           </button>
@@ -131,6 +152,7 @@ export default function App() {
               onCorrect={handleCorrect}
               onWrong={handleWrong}
               allNotes={NOTES}
+              easy={level === 'easy'}
             />
             <button style={styles.nextBtn} onClick={nextCard}>
               Next card →
@@ -200,10 +222,24 @@ const styles = {
     minWidth: 40,
     textAlign: 'right',
   },
+  levelRow: {
+    display: 'flex',
+    gap: 8,
+    margin: '14px 0 0',
+  },
+  levelBtn: {
+    padding: '7px 20px',
+    borderRadius: 20,
+    border: 'none',
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: 'pointer',
+    transition: 'background 0.2s',
+  },
   modeRow: {
     display: 'flex',
     gap: 8,
-    margin: '16px 0 12px',
+    margin: '8px 0 12px',
   },
   modeBtn: {
     padding: '6px 14px',

@@ -14,17 +14,33 @@ function buildStaffChoices(note, allNotes) {
   ].sort(() => Math.random() - 0.5)
 }
 
-export default function Flashcard({ note, mode, onCorrect, onWrong, allNotes }) {
-  const [answered, setAnswered] = useState(null) // 'correct' | 'wrong' | null
+// Pick a neighboring note as a hint (adjacent staffStep in allNotes)
+function pickHintNote(note, allNotes) {
+  const idx = allNotes.findIndex((n) => n.name === note.name)
+  const candidates = []
+  if (idx > 0) candidates.push({ ...allNotes[idx - 1], side: 'left' })
+  if (idx < allNotes.length - 1) candidates.push({ ...allNotes[idx + 1], side: 'right' })
+  if (candidates.length === 0) return null
+  return candidates[Math.floor(Math.random() * candidates.length)]
+}
+
+export default function Flashcard({ note, mode, onCorrect, onWrong, allNotes, easy = false }) {
+  const [answered, setAnswered] = useState(null)
   const [guessStep, setGuessStep] = useState(null)
 
   const isStaffToName = mode === 'staff-to-name'
 
-  // Build the 4 staff choices once per card (stable across re-renders)
   const staffChoices = useMemo(
     () => buildStaffChoices(note, allNotes),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [note.name]
+  )
+
+  // Hint note for easy mode (stable per card)
+  const hintNote = useMemo(
+    () => (easy ? pickHintNote(note, allNotes) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [note.name, easy]
   )
 
   function handleNameGuess(guessedNote) {
@@ -57,17 +73,29 @@ export default function Flashcard({ note, mode, onCorrect, onWrong, allNotes }) 
     <div style={styles.wrapper}>
       <div style={{ ...styles.card, background: cardBg }}>
 
-        {/* Prompt + question content */}
+        {/* Easy badge */}
+        {easy && <div style={styles.easyBadge}>⭐ Easy</div>}
+
+        {/* Prompt */}
         <div style={styles.front}>
           {isStaffToName ? (
             <>
-              <p style={styles.prompt}>What note is this?</p>
-              <Staff staffStep={note.staffStep} sharp={note.sharp} />
+              <p style={styles.prompt}>
+                {easy ? 'Use the hint — what is the mystery note?' : 'What note is this?'}
+              </p>
+              <Staff staffStep={note.staffStep} sharp={note.sharp} hintNote={hintNote} />
             </>
           ) : (
             <>
-              <p style={styles.prompt}>Where does this note sit on the staff?</p>
+              <p style={styles.prompt}>
+                {easy ? 'Use the hint — where does this note sit?' : 'Where does this note sit on the staff?'}
+              </p>
               <div style={styles.bigNoteName}>{note.name}</div>
+              {easy && hintNote && (
+                <p style={styles.hintText}>
+                  Hint: <strong>{hintNote.name}</strong> is {hintNote.side === 'left' ? 'just before' : 'just after'} it
+                </p>
+              )}
             </>
           )}
         </div>
@@ -117,7 +145,16 @@ export default function Flashcard({ note, mode, onCorrect, onWrong, allNotes }) 
                     onClick={() => handleStaffGuess(choice)}
                     disabled={!!answered}
                   >
-                    <Staff staffStep={choice.staffStep} sharp={choice.sharp} small />
+                    <Staff
+                      staffStep={choice.staffStep}
+                      sharp={choice.sharp}
+                      small
+                      hintNote={
+                        easy && hintNote
+                          ? { ...hintNote, side: hintNote.side }
+                          : null
+                      }
+                    />
                   </button>
                 )
               })}
@@ -130,7 +167,7 @@ export default function Flashcard({ note, mode, onCorrect, onWrong, allNotes }) 
           <div style={styles.revealPanel}>
             <div style={styles.revealRow}>
               <span style={answered === 'correct' ? styles.correct : styles.wrong}>
-                {answered === 'correct' ? '✓ Correct!' : `✗ It's ${note.name} on the ${answered === 'wrong' ? 'highlighted' : ''} position`}
+                {answered === 'correct' ? '✓ Correct!' : `✗ It's ${note.name}`}
               </span>
             </div>
             <div style={styles.fingeringBox}>
@@ -161,6 +198,16 @@ const styles = {
     alignItems: 'center',
     gap: 12,
   },
+  easyBadge: {
+    alignSelf: 'flex-start',
+    background: '#fff9c4',
+    border: '1px solid #f9a825',
+    color: '#f57f17',
+    borderRadius: 20,
+    padding: '2px 10px',
+    fontSize: 12,
+    fontWeight: 700,
+  },
   front: {
     display: 'flex',
     flexDirection: 'column',
@@ -173,6 +220,7 @@ const styles = {
     fontSize: 15,
     color: '#666',
     fontWeight: 500,
+    textAlign: 'center',
   },
   bigNoteName: {
     fontSize: 72,
@@ -181,6 +229,14 @@ const styles = {
     lineHeight: 1,
     margin: '8px 0',
     fontFamily: 'serif',
+  },
+  hintText: {
+    margin: '4px 0 0',
+    fontSize: 13,
+    color: '#5c6bc0',
+    background: '#ede7f6',
+    borderRadius: 8,
+    padding: '4px 12px',
   },
   choicesArea: {
     width: '100%',

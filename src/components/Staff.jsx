@@ -1,33 +1,28 @@
 // SVG staff renderer for treble clef notes
-// staffStep mapping (same as notes.js):
+// staffStep mapping:
 //   2 = E4 (1st line), 3 = F4 (1st space), 4 = G4 (2nd line), 5 = A4 (2nd space),
 //   6 = B4 (3rd line), 7 = C5 (3rd space), 8 = D5 (4th line), 9 = E5 (4th space),
 //   10 = F5 (5th line)
-// Each step = 8px vertically (half a space)
 
-const LINE_SPACING = 10 // px between staff lines
+const LINE_SPACING = 10
 const NOTE_RADIUS = 8
 const STAFF_LEFT = 80
-const STAFF_RIGHT = 220
+const STAFF_RIGHT = 240
 const STAFF_WIDTH = 300
 
-// Y position for staffStep: step 2 (E4) = bottom line
-// Bottom line Y = 100, each step up = -5px (half LINE_SPACING)
 function stepToY(step) {
   const BOTTOM_LINE_Y = 110
   return BOTTOM_LINE_Y - (step - 2) * (LINE_SPACING / 2)
 }
 
-function NoteHead({ step, sharp = false }) {
+function NoteHead({ step, sharp = false, cx, label = null }) {
   const cy = stepToY(step)
-  const cx = STAFF_WIDTH / 2 + 10
 
-  // Stem goes down-left for notes on/above the middle line (B4 = staffStep 6)
   const stemDown = step >= 6
   const stemX = stemDown ? cx - NOTE_RADIUS + 1 : cx + NOTE_RADIUS - 1
   const stemY2 = stemDown ? cy + 35 : cy - 35
 
-  // Ledger lines needed
+  // Ledger lines
   const ledgerLines = []
   if (step <= 1) {
     for (let s = 2; s > step; s -= 2) ledgerLines.push(s - 2)
@@ -35,6 +30,9 @@ function NoteHead({ step, sharp = false }) {
   if (step >= 11) {
     for (let s = 10; s < step; s += 2) ledgerLines.push(s + 2)
   }
+
+  // Label position: above stem end for stem-up, below stem end for stem-down
+  const labelY = stemDown ? cy + 35 + 14 : cy - 35 - 6
 
   return (
     <g>
@@ -77,13 +75,42 @@ function NoteHead({ step, sharp = false }) {
         stroke="#1a1a2e"
         strokeWidth={1.8}
       />
+      {/* Hint label */}
+      {label && (
+        <text
+          x={cx}
+          y={labelY}
+          textAnchor="middle"
+          fontSize="13"
+          fontWeight="700"
+          fill="#5c6bc0"
+          fontFamily="serif"
+        >
+          {label}
+        </text>
+      )}
     </g>
   )
 }
 
-export default function Staff({ staffStep, sharp = false, dimmed = false, small = false }) {
-  const lines = [2, 4, 6, 8, 10] // staffSteps for the 5 lines
+// hintNote: { staffStep, sharp, name, side: 'left'|'right' }
+export default function Staff({
+  staffStep,
+  sharp = false,
+  dimmed = false,
+  small = false,
+  hintNote = null,
+}) {
+  const lines = [2, 4, 6, 8, 10]
   const scale = small ? 0.6 : 1
+
+  // x positions: if hint note present, space the two notes apart
+  const mysteryCx = hintNote
+    ? hintNote.side === 'left' ? 190 : 120
+    : 160
+  const hintCx = hintNote
+    ? hintNote.side === 'left' ? 120 : 190
+    : null
 
   return (
     <svg
@@ -93,7 +120,7 @@ export default function Staff({ staffStep, sharp = false, dimmed = false, small 
       style={{ opacity: dimmed ? 0.25 : 1, transition: 'opacity 0.3s' }}
       aria-label="Music staff"
     >
-      {/* Treble clef symbol */}
+      {/* Treble clef */}
       <text
         x={18}
         y={stepToY(6) + 38}
@@ -110,7 +137,7 @@ export default function Staff({ staffStep, sharp = false, dimmed = false, small 
         <line
           key={step}
           x1={STAFF_LEFT}
-          x2={STAFF_RIGHT + 20}
+          x2={STAFF_RIGHT}
           y1={stepToY(step)}
           y2={stepToY(step)}
           stroke="#555"
@@ -118,8 +145,35 @@ export default function Staff({ staffStep, sharp = false, dimmed = false, small 
         />
       ))}
 
-      {/* Note */}
-      {staffStep != null && <NoteHead step={staffStep} sharp={sharp} />}
+      {/* Hint note (labeled) */}
+      {hintNote && hintCx != null && (
+        <NoteHead
+          step={hintNote.staffStep}
+          sharp={hintNote.sharp}
+          cx={hintCx}
+          label={hintNote.name}
+        />
+      )}
+
+      {/* Mystery note (no label) */}
+      {staffStep != null && (
+        <NoteHead step={staffStep} sharp={sharp} cx={mysteryCx} />
+      )}
+
+      {/* Question mark over mystery note when hint is showing */}
+      {hintNote && staffStep != null && (
+        <text
+          x={mysteryCx}
+          y={stepToY(staffStep) - (staffStep >= 6 ? 42 : -48)}
+          textAnchor="middle"
+          fontSize="14"
+          fontWeight="700"
+          fill="#e53935"
+          fontFamily="sans-serif"
+        >
+          ?
+        </text>
+      )}
     </svg>
   )
 }
